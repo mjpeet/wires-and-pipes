@@ -1,17 +1,14 @@
-using System.Diagnostics;
-using System.Net;
-using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using WiresAndPipes.Api.Polling;
 using Xunit;
 
 namespace WiresAndPipes.IntegrationTests;
 
-public sealed class ElectricityTracerBulletTests : IClassFixture<ElectricityTracerBulletFactory>
+public sealed class ElectricityTracerBulletTests : IClassFixture<ElectricityApiFactory>
 {
-    private readonly ElectricityTracerBulletFactory _factory;
+    private readonly ElectricityApiFactory _factory;
 
-    public ElectricityTracerBulletTests(ElectricityTracerBulletFactory factory)
+    public ElectricityTracerBulletTests(ElectricityApiFactory factory)
     {
         _factory = factory;
     }
@@ -29,39 +26,14 @@ public sealed class ElectricityTracerBulletTests : IClassFixture<ElectricityTrac
             await pollCycle.RunOnceAsync(CancellationToken.None);
         }
 
-        var reading = await PollUntilAvailableAsync(client, TimeSpan.FromSeconds(30));
+        var reading = await HttpPolling.PollUntilAsync<LatestReadingResponse>(
+            client,
+            $"/api/interconnectors/{StubElexonClient.PrimaryInterconnectorCode}/latest",
+            _ => true,
+            TimeSpan.FromSeconds(30));
 
-        Assert.Equal(StubElexonClient.TrackedInterconnectorCode, reading.InterconnectorCode);
-        Assert.Equal(StubElexonClient.TrackedInterconnectorGenerationMw, reading.GenerationMw);
+        Assert.Equal(StubElexonClient.PrimaryInterconnectorCode, reading.InterconnectorCode);
+        Assert.Equal(StubElexonClient.PrimaryInterconnectorGenerationMw, reading.GenerationMw);
         Assert.Equal(StubElexonClient.SettlementPeriod, reading.SettlementPeriod);
     }
-
-    private static async Task<LatestReadingResponse> PollUntilAvailableAsync(HttpClient client, TimeSpan timeout)
-    {
-        var deadline = DateTime.UtcNow + timeout;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            var response = await client.GetAsync($"/api/interconnectors/{StubElexonClient.TrackedInterconnectorCode}/latest");
-
-            if (response.StatusCode == HttpStatusCode.OK)
-            {
-                var reading = await response.Content.ReadFromJsonAsync<LatestReadingResponse>();
-                Assert.NotNull(reading);
-                return reading;
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(250));
-        }
-
-        Assert.Fail($"No reading became available within {timeout}.");
-        throw new UnreachableException();
-    }
-
-    private sealed record LatestReadingResponse(
-        string InterconnectorCode,
-        DateOnly SettlementDate,
-        int SettlementPeriod,
-        decimal GenerationMw,
-        DateTimeOffset RecordedAt);
 }

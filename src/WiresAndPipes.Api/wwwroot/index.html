@@ -3,10 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <title>GB Energy Flows</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 2rem;
+    }
+
+    #map {
+      max-width: 480px;
+    }
+
+    #map svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+  </style>
 </head>
 <body>
   <h1>Great Britain electricity flows</h1>
-  <p id="latest-reading">Loading…</p>
+  <div id="map">Loading…</div>
   <script src="js/app.js"></script>
 </body>
 </html>

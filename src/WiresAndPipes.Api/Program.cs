@@ -59,22 +59,12 @@ using (var scope = app.Services.CreateScope())
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-app.MapGet("/api/interconnectors/{code}/latest", async (string code, WiresAndPipesDbContext dbContext) =>
-{
-    var latest = await dbContext.InterconnectorReadings
-        .Where(r => r.InterconnectorCode == code)
-        .OrderByDescending(r => r.SettlementDate)
-        .ThenByDescending(r => r.SettlementPeriod)
-        .Select(r => new
-        {
-            r.InterconnectorCode,
-            r.SettlementDate,
-            r.SettlementPeriod,
-            r.GenerationMw,
-            r.RecordedAt,
-        })
-        .FirstOrDefaultAsync();
+app.MapGet("/api/interconnectors/latest", async (WiresAndPipesDbContext dbContext, CancellationToken cancellationToken) =>
+    Results.Ok(await dbContext.GetLatestForAllInterconnectorsAsync(cancellationToken)));
 
+app.MapGet("/api/interconnectors/{code}/latest", async (string code, WiresAndPipesDbContext dbContext, CancellationToken cancellationToken) =>
+{
+    var latest = await dbContext.GetLatestForInterconnectorAsync(code, cancellationToken);
     return latest is null ? Results.NotFound() : Results.Ok(latest);
 });
 

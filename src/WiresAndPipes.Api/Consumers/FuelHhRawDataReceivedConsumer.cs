@@ -3,18 +3,16 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using WiresAndPipes.Api.Data;
 using WiresAndPipes.Api.Elexon;
-using WiresAndPipes.Api.Polling;
 
 namespace WiresAndPipes.Api.Consumers;
 
 /// <summary>
-/// Normalises a raw FUELHH payload into the Postgres read model, keeping only the tracked
-/// interconnector for this slice. Upserts on (interconnector, settlement date, settlement
-/// period) so re-polling the same period is idempotent.
+/// Normalises a raw FUELHH payload into the Postgres read model, keeping every interconnector
+/// (see <see cref="InterconnectorCodes"/>) and discarding domestic fuel types. Upserts on
+/// (interconnector, settlement date, settlement period) so re-polling the same period is
+/// idempotent.
 /// </summary>
-public sealed class FuelHhRawDataReceivedConsumer(
-    WiresAndPipesDbContext dbContext,
-    ElexonPollingOptions options)
+public sealed class FuelHhRawDataReceivedConsumer(WiresAndPipesDbContext dbContext)
     : IConsumer<FuelHhRawDataReceived>
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -27,15 +25,14 @@ public sealed class FuelHhRawDataReceivedConsumer(
             return;
         }
 
-        var trackedRecords = payload.Data.Where(r =>
-            string.Equals(r.FuelType, options.TrackedInterconnectorCode, StringComparison.OrdinalIgnoreCase));
+        var interconnectorRecords = payload.Data.Where(r => InterconnectorCodes.IsInterconnector(r.FuelType));
 
-        foreach (var record in trackedRecords)
+        foreach (var record in interconnectorRecords)
         {
             var settlementDate = DateOnly.Parse(record.SettlementDate);
 
             var existing = await dbContext.InterconnectorReadings.SingleOrDefaultAsync(
-                r => r.InterconnectorCode == options.TrackedInterconnectorCode
+                r => r.InterconnectorCode == record.FuelType
                      && r.SettlementDate == settlementDate
                      && r.SettlementPeriod == record.SettlementPeriod,
                 context.CancellationToken);
@@ -44,7 +41,7 @@ public sealed class FuelHhRawDataReceivedConsumer(
             {
                 dbContext.InterconnectorReadings.Add(new InterconnectorReading
                 {
-                    InterconnectorCode = options.TrackedInterconnectorCode,
+                    InterconnectorCode = record.FuelType,
                     SettlementDate = settlementDate,
                     SettlementPeriod = record.SettlementPeriod,
                     GenerationMw = record.Generation,

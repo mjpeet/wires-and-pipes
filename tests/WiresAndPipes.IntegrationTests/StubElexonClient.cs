@@ -4,12 +4,16 @@ namespace WiresAndPipes.IntegrationTests;
 
 /// <summary>
 /// Stands in for the real Elexon API in tests: returns a fixed, recorded-looking FUELHH
-/// payload instead of making a network call.
+/// payload instead of making a network call. Includes several interconnectors plus one
+/// domestic fuel type, so tests can assert that only interconnectors get normalised.
 /// </summary>
 public sealed class StubElexonClient : IElexonClient
 {
-    public const string TrackedInterconnectorCode = "INTFR";
-    public const decimal TrackedInterconnectorGenerationMw = 742.5m;
+    public const string PrimaryInterconnectorCode = "INTFR";
+    public const decimal PrimaryInterconnectorGenerationMw = 742.5m;
+    public const string SecondaryInterconnectorCode = "INTNED";
+    public const decimal SecondaryInterconnectorGenerationMw = -310.0m;
+    public const string DomesticFuelType = "WIND";
     public const string SettlementDate = "2026-10-02";
     public const int SettlementPeriod = 17;
 
@@ -21,14 +25,20 @@ public sealed class StubElexonClient : IElexonClient
             {
               "settlementDate": "{{SettlementDate}}",
               "settlementPeriod": {{SettlementPeriod}},
-              "fuelType": "{{TrackedInterconnectorCode}}",
-              "generation": {{TrackedInterconnectorGenerationMw}}
+              "fuelType": "{{PrimaryInterconnectorCode}}",
+              "generation": {{PrimaryInterconnectorGenerationMw}}
             },
             {
               "settlementDate": "{{SettlementDate}}",
               "settlementPeriod": {{SettlementPeriod}},
-              "fuelType": "INTNED",
-              "generation": 310.0
+              "fuelType": "{{SecondaryInterconnectorCode}}",
+              "generation": {{SecondaryInterconnectorGenerationMw}}
+            },
+            {
+              "settlementDate": "{{SettlementDate}}",
+              "settlementPeriod": {{SettlementPeriod}},
+              "fuelType": "{{DomesticFuelType}}",
+              "generation": 5102.0
             }
           ]
         }

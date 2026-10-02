@@ -17,7 +17,7 @@ namespace WiresAndPipes.IntegrationTests;
 /// Elexon HTTP call swapped for a stub. This is the seam the spec calls for: everything from
 /// the poller onward is real, only the external Elexon API is faked.
 /// </summary>
-public sealed class ElectricityTracerBulletFactory : WebApplicationFactory<Program>, IAsyncLifetime
+public sealed class ElectricityApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine")
         .Build();
@@ -50,7 +50,6 @@ public sealed class ElectricityTracerBulletFactory : WebApplicationFactory<Progr
                 ["RabbitMq:Port"] = rabbitMqUri.Port.ToString(),
                 ["RabbitMq:Username"] = Uri.UnescapeDataString(userInfo[0]),
                 ["RabbitMq:Password"] = Uri.UnescapeDataString(userInfo[1]),
-                ["Elexon:TrackedInterconnectorCode"] = StubElexonClient.TrackedInterconnectorCode,
             });
         });
 
